@@ -78,13 +78,11 @@ This method converged independently to θ ≈ 30°, M ≈ 0.03, X ≈ 55, matchi
 
 Given that the curve spans roughly 50 units in x and 25 in y, distances at the 0.0004-unit scale are effectively noise, not a meaningful mismatch.
 
-**Plotting.** The fitted curve was overlaid on the raw data, both in Python (Matplotlib) and independently in Desmos. In both cases the curve passes through every data point with no visible deviation, including through the most sensitive section of the curve where the wiggle changes direction.
+**Plotting:** The fitted curve was overlaid on the raw data, both in Python (Matplotlib) and independently in Desmos. In both cases the curve passes through every data point with no visible deviation, including through the most sensitive section of the curve where the wiggle changes direction.
 
 ![Fitted curve overlaid on the given data](fit_overlay.png)
 
 *(generated automatically by `fit_curve.py` — saved as `fit_overlay.png` when the script is run)*
-
-**Cross-method agreement.** The strongest piece of validation is that two independently-derived methods — one a black-box global optimizer working in x,y space, the other a closed-form algebraic reduction — converged on the same parameter values to high precision. Agreement of this kind is considerably stronger evidence than a single method's low residual on its own.
 
 ## Final Results
 
