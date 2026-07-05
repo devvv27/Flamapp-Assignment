@@ -107,18 +107,19 @@ Domain: `6 ≤ t ≤ 60`
 ## Files in This Repo
 
 - `fit_curve.py` — full implementation of both methods, plus L1 distance reporting and plot generation
-- `xy_data.csv` — the provided data
+- `Dataset.csv` — the provided data
 - `fit_overlay.png` — fitted curve plotted against the given data
 - `README.md` — this file
 
 ## Tools & References
 
+
+- [Breaking Down Nelder-Mead](https://brandewinder.com/2022/03/31/breaking-down-Nelder-Mead/) —Explains how the Nelder-Mead algorithm works
+- [Chamfer Distance, explained](https://medium.com/@sim30217/chamfer-distance-4207955e8612) — Explains Chamfer distance metric
 - [SciPy `differential_evolution` documentation](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html) — global optimizer used for Method 1
 - [SciPy `minimize` (Nelder-Mead) documentation](https://docs.scipy.org/doc/scipy/reference/optimize.minimize-neldermead.html) — local refinement used in both methods
 - [SciPy `cKDTree` documentation](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.cKDTree.html) — nearest-point lookup for the Chamfer/L1 distance
-- [NumPy](https://numpy.org/) — vectorized curve evaluation and closed-form linear regression
+- - [NumPy](https://numpy.org/) — vectorized curve evaluation and closed-form linear regression
 - [pandas](https://pandas.pydata.org/) — CSV loading and data handling
 - [Matplotlib](https://matplotlib.org/) — visualization of fitted curve vs. actual data
 - [Desmos](https://www.desmos.com/) — independent visual verification of the final equation
-- [Breaking Down Nelder-Mead](https://brandewinder.com/2022/03/31/breaking-down-Nelder-Mead/) — background reading on how the Nelder-Mead simplex algorithm works
-- [Chamfer Distance, explained](https://medium.com/@sim30217/chamfer-distance-4207955e8612) — background reading on the Chamfer distance metric used in Method 1
