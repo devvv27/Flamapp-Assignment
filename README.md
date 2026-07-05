@@ -106,24 +106,19 @@ Domain: `6 ≤ t ≤ 60`
 
 ## Files in This Repo
 
-- `fit_curve.py` — full implementation of both methods, plus L1 distance reporting
+- `fit_curve.py` — full implementation of both methods, plus L1 distance reporting and plot generation
 - `xy_data.csv` — the provided data
+- `fit_overlay.png` — fitted curve plotted against the given data
 - `README.md` — this file
 
-## How to Run
+## Tools & References
 
-```bash
-pip install numpy pandas scipy
-python fit_curve.py
-```
-
-This prints both methods' fitted parameters, their agreement, the L1 distance statistics, and the final Desmos-ready equation string.
-
-## Tools Used
-
-- **SciPy** (`differential_evolution`, `minimize` with Nelder-Mead) — parameter optimization
-- **SciPy** (`cKDTree`) — efficient nearest-point lookup for the Chamfer distance
-- **NumPy** — vectorized curve evaluation and linear regression
-- **pandas** — CSV loading
-- **Matplotlib** — visualization of fitted curve vs. data
-- **Desmos** — independent visual verification of the final equation
+- [SciPy `differential_evolution` documentation](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html) — global optimizer used for Method 1
+- [SciPy `minimize` (Nelder-Mead) documentation](https://docs.scipy.org/doc/scipy/reference/optimize.minimize-neldermead.html) — local refinement used in both methods
+- [SciPy `cKDTree` documentation](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.cKDTree.html) — nearest-point lookup for the Chamfer/L1 distance
+- [NumPy](https://numpy.org/) — vectorized curve evaluation and closed-form linear regression
+- [pandas](https://pandas.pydata.org/) — CSV loading and data handling
+- [Matplotlib](https://matplotlib.org/) — visualization of fitted curve vs. actual data
+- [Desmos](https://www.desmos.com/) — independent visual verification of the final equation
+- [Breaking Down Nelder-Mead](https://brandewinder.com/2022/03/31/breaking-down-Nelder-Mead/) — background reading on how the Nelder-Mead simplex algorithm works
+- [Chamfer Distance, explained](https://medium.com/@sim30217/chamfer-distance-4207955e8612) — background reading on the Chamfer distance metric used in Method 1
