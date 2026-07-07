@@ -9,11 +9,11 @@ x(t) = t·cos(θ) − e^(M|t|)·sin(0.3t)·sin(θ) + X
 y(t) = 42 + t·sin(θ) + e^(M|t|)·sin(0.3t)·cos(θ)
 ```
 
-defined over `6 < t < 60`, with θ constrained to `0°–50°`, M to `−0.05–0.05`, and X to `0–100`. A file, `xy_data.csv`, contains 1500 `(x, y)` points known to lie on this curve — but crucially, without the `t` values that generated them, and not in any particular order. The problem is therefore to recover θ, M, and X purely from the shape of the point cloud.
+defined over `6 < t < 60`, with θ constrained to `0°–50°`, M to `−0.05–0.05`, and X to `0–100`. A file, `xy_data.csv`, contains 1500 `(x, y)` points known to lie on this curve.
 
 ## Approach
 
-### Step 1: Reading the geometry before touching any numbers
+### Step 1: Understanding the Geometry
 
 Rearranging the equations to isolate X and 42 makes the underlying structure visible:
 
@@ -22,7 +22,7 @@ Rearranging the equations to isolate X and 42 makes the underlying structure vis
 (y − 42) = t·sin(θ) + v·cos(θ)      where v = e^(M|t|)·sin(0.3t)
 ```
 
-This is a standard 2D rotation matrix applied to the point `(t, v)`, followed by a translation. In other words, the curve is not an arbitrary shape to be fitted blindly — it is a simple base curve (a straight `t` axis paired with an exponentially-modulated sine wave) that has been rotated by θ and shifted by X. This observation reframed the problem from "fit three abstract parameters" into "recover a rotation angle, a translation, and a growth rate" — a much more concrete target, and one that shaped both methods below.
+This is a standard 2D rotation matrix applied to the point `(t, v)`, followed by a translation. In other words, the curve is not an arbitrary shape to be fitted blindly. it is a simple base curve that has been rotated by θ and shifted by X. This observation reframes the problem: recover rotation angle, translation, and growth rate.
 
 ### Step 2: Method 1 — global Chamfer-distance fit
 
@@ -33,24 +33,49 @@ Since the data points carry no `t` label, the natural formulation is a point-clo
 3. Average these nearest-point distances into a single loss value.
 4. Minimize this loss over the full parameter space using `scipy.optimize.differential_evolution`, a population-based, gradient-free global optimizer, followed by a local `Nelder-Mead` polish with a finer curve sampling for precision.
 
-L1 distance was used because it's the assignment's own grading metric, and it's also less sensitive to outlier points than a squared (L2) error would be, since it doesn't amplify large individual mismatches the way squaring does. Finding the nearest curve point for all 1500 data points on every single optimizer iteration would be far too slow with brute-force comparison — that would mean comparing each data point against every one of the thousands of sampled curve points, repeated for every candidate the optimizer tries, so a `cKDTree` was used instead, turning each lookup into a fast operation rather than a full scan. For the search itself, `differential_evolution` was chosen over a simple local search because it explores the entire bounded parameter space with a population of candidates rather than improving from one starting guess — important here since the periodic `sin(0.3t)` term makes the loss landscape non-convex, and a purely local method can converge confidently on a wrong answer that only looks like a minimum from nearby. Concretely, the algorithm keeps a pool of candidate `(θ, M, X)` triples, combines and perturbs them across generations, and keeps whichever ones score lower on the loss, which lets it hop between distant regions of the search space rather than getting anchored to wherever it happened to start. A coarser curve sampling (1500 points) was used during this global stage purely for speed, since the objective gets evaluated many thousands of times over the course of the search, while a much finer sampling (20,000 points) was reserved for the final polish, where only a handful of evaluations are needed and precision matters more than speed. That final polish used `Nelder-Mead` rather than a gradient-based method, since the nearest-neighbor lookup makes the loss function technically non-smooth at a fine scale — small parameter changes can abruptly flip which curve point counts as "closest," which confuses methods that rely on a derivative. Nelder-Mead only ever evaluates the function directly, moving and reshaping a small cluster of trial points toward lower loss, so this non-smoothness doesn't affect it the way it would a gradient-based method.
+L1 distance was used because its less sensitive to outlier points than a squared (L2) error would be, since it doesn't amplify large individual mismatches the way squaring does. Finding the nearest curve point for all 1500 data points on every single optimizer iteration would be far too slow with brute-force comparison. Therefore a `cKDTree` was used instead, turning each lookup into a fast operation rather than a full scan. For the search itself, `differential_evolution` was chosen over a simple local search because it explores the entire bounded parameter space with a population of candidates rather than improving from one starting guess — important here since the periodic `sin(0.3t)` term makes the loss landscape non-convex, and a purely local method can converge confidently on a wrong answer that only looks like a minimum from nearby. Concretely, the algorithm keeps a pool of candidate `(θ, M, X)` triples, combines and perturbs them across generations and keeps whichever ones score lower on the loss, which lets it hop between distant regions of the search space. A coarser curve sampling (1500 points) was used during this global stage purely for speed, since the objective gets evaluated many thousands of times over the course of the search, while a much finer sampling (20,000 points) was reserved for the final polish, where only a handful of evaluations are needed and precision matters more than speed. That final polish used `Nelder-Mead` rather than a gradient-based method, since the nearest-neighbor lookup makes the loss function technically non-smooth at a fine scale as small parameter changes can abruptly flip which curve point counts as "closest" which confuses methods that rely on a derivative. Nelder-Mead only ever evaluates the function directly, moving and reshaping a small cluster of trial points toward lower loss, so this non-smoothness doesn't affect it the way it would a gradient-based method.
 
 This converged to θ ≈ 30°, M ≈ 0.03, X ≈ 55, with a mean L1 residual near zero.
 
-### Step 3: Method 2 — algebraic inversion with closed-form regression, as an independent check
+### Step 3 Method 2: Algebraic Inversion with Closed-Form Regression
 
-Rather than accept Method 1's result on its own, a second, structurally different method was used to verify it. The rotation identified in Step 1 can be undone algebraically for any candidate `(θ, X)`, with no search involved:
+This method provides an independent check on the results from the first method. Instead of searching for all unknown values through trial and error, it calculates some of them directly using the structure of the problem, offering a different way to confirm the final answer.
 
-```
-t = (x − X)·cos(θ) + (y − 42)·sin(θ)
-v = −(x − X)·sin(θ) + (y − 42)·cos(θ)
-```
 
-If `(θ, X)` are correct, the recovered `v` values should satisfy `v = e^(Mt)·sin(0.3t)` for the true M. Taking a logarithm turns this into a linear equation, `ln(v / sin(0.3t)) = M·t`, which means M can be solved directly by ordinary least-squares regression through the origin — no iterative search required for M at all.
+For any guessed pair `(θ, X)`, the rotation can be reversed using direct algebraic calculations:
 
-This works because θ and X can already be undone exactly with linear algebra for any candidate, so there's no reason to spend optimizer iterations rediscovering something that can be computed directly — that's the whole motivation for a second method: lean on the known structure instead of treating all three unknowns as equally opaque. Turning the exponential relationship into a straight line via a logarithm means solving for M becomes a simple regression instead of another nonlinear search, which is both faster and more numerically reliable, since linear regression has a single closed-form solution with no risk of the optimizer stalling or diverging. Points near the zero-crossings of `sin(0.3t)` were excluded before this regression, since dividing by a value close to zero amplifies any small numerical noise into a huge, misleading value and would distort the fit; points where the resulting ratio came out negative or near zero were dropped too, since `e^(M|t|)` must always be positive by definition, so a bad ratio signals either a wrong `(θ, X)` guess or an unreliable point that shouldn't be trusted. The regression was also forced through the origin, matching the fact that the true model has no constant offset term at `t = 0` allowing an intercept would let the regression silently absorb some of the error instead of attributing it correctly. Even with M eliminated, the remaining 2D search over θ and X is still non-convex for the same periodic reason as before — an early attempt starting `Nelder-Mead` from an arbitrary point converged on a clearly wrong answer (θ ≈ 14°, high residual) — so a coarse grid scan across the full bounded region was run first to find the correct basin before refining locally, which is cheap here since each evaluation of the reduced 2-parameter objective is fast.
+$$
+t = (x - X) \cdot \cos(θ) + (y - 42) \cdot \sin(θ)
+$$
 
-This method converged independently to θ ≈ 30°, M ≈ 0.03, X ≈ 55, matching Method 1 to five-plus decimal places despite using an entirely different mathematical route — one relying on optimization, the other on algebraic inversion plus linear regression. Because the two methods share almost no machinery (different loss functions, different search strategies, and different handling of M), it's very unlikely they'd both land on the same wrong answer by coincidence, which is what makes this agreement meaningful rather than just reassuring.
+$$
+v = -(x - X) \cdot \sin(θ) + (y - 42) \cdot \cos(θ)
+$$
+
+If `(θ, X)` are correct, the recovered `v` values must follow the true equation:
+
+$$
+v = e^{M t} \cdot \sin(0.3t)
+$$
+
+Taking the natural logarithm of both sides converts the exponential relationship into a linear equation:
+
+$$
+\ln\left(\frac{v}{\sin(0.3t)}\right) = M \cdot t
+$$
+
+This allows `M` to be found directly using standard linear regression through the origin—again, with no trial-and-error search.
+
+The reversal for `θ` and `X` is performed using direct algebraic calculations, so no iterative search is required for these two parameters. The logarithm converts the exponential relationship involving `M` into a linear one, which allows `M` to be determined through standard linear regression; this approach has a single direct solution and avoids the instability that can occur with nonlinear searches. Before performing the regression, data points near the zero-crossings of `sin(0.3t)` are excluded, because division by values close to zero amplifies numerical errors into large distortions. Points that yield a negative ratio are also excluded, since the true equation requires a positive value; a negative ratio indicates either an incorrect guess for `(θ, X)` or an unreliable data point. The regression is forced through the origin to match the true model, which has no constant term at `t = 0`; this prevents an intercept from absorbing errors that should be attributed to the parameters instead. Even after `M` is removed from the search, the remaining two-parameter search for `θ` and `X` still contains multiple local solutions due to the periodic nature of the objective function. An initial attempt using the Nelder-Mead optimizer from an arbitrary starting point converged to an incorrect solution (`θ ≈ 14°`, high residual). To avoid these local traps, a coarse grid scan is performed across the entire bounded region to locate the correct area first, followed by local refinement. This scan is computationally inexpensive because each evaluation of the reduced two-parameter objective is fast.
+
+## Final Converged Results
+This method independently arrived at:
+
+- **θ ≈ 30°**
+- **M ≈ 0.03**
+- **X ≈ 55**
+
+These values match the results from Method 1 to five decimal places or more, even though the two methods use different mathematical paths—one relies on iterative optimization, while the other uses algebraic reversal combined with linear regression.
 
 ### Step 4: Validation
 
@@ -76,8 +101,6 @@ Given that the curve spans roughly 50 units in x and 25 in y, distances at the 0
 - **θ ≈ 30°** (0.523599 rad)
 - **M ≈ 0.03**
 - **X ≈ 55**
-
-The closeness of these fitted values to round numbers strongly suggests they are the exact parameters used to generate the dataset, with the small deviations attributable to optimizer tolerance rather than any real fitting error.
 
 ## Final Equation
 
